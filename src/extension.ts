@@ -116,23 +116,26 @@ function generateHtmlFromSvg(svgContent: string): string {
                             min-height: 100vh;
                         }
                         .svg-container {
-                            display: block;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
                             width: 100%;
+                            height: calc(100vh - 100px);
                             margin: 0;
                             padding: 0;
-                            min-width: 100px;
-                            min-height: 100px;
-                            transform-origin: top left;
+                            overflow: hidden;
+                            transform-origin: center center;
                             transition: transform 0.1s ease;
                             transform: scale(1);
                         }
                         svg {
                             ${svgFilter}
-                            width: 100%;
-                            height: auto;
                             max-width: 100%;
+                            max-height: 100%;
+                            width: auto;
+                            height: auto;
                             display: block;
-                            transform-origin: top left;
+                            transform-origin: center center;
                             transform-box: fill-box;
                         }
                         .zoom-controls {
