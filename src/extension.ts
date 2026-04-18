@@ -5,7 +5,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as cp from 'child_process';
-import { tmpdir } from 'os';
+import { copyYamlDependenciesRecursively } from './dependencyCopy';
 
 
 let svgPreviewPanel: vscode.WebviewPanel | undefined;
@@ -59,11 +59,12 @@ export function activate(context: vscode.ExtensionContext) {
 
 }
 
+
 async function run_gsn2x(command: string, outputPath: string, yamlFilePath: string): Promise<string> {
     // Execute the configured command-line tool
     return new Promise<string>((resolve, reject) => {
-		let yamlintemp = path.join(outputPath, path.basename(yamlFilePath));
-		fs.copyFileSync(yamlFilePath, yamlintemp);
+		const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+		const yamlintemp = copyYamlDependenciesRecursively(yamlFilePath, outputPath, workspaceFolder);
 		const directory = path.dirname(yamlintemp);
     	const baseName = path.basename(yamlintemp, path.extname(yamlintemp));
     	const svgOutputPath = path.join(directory, `${baseName}.svg`);
