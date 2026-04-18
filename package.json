@@ -50,7 +50,7 @@
     "check-license": "license-checker --production --onlyAllow \"MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC\""
   },
   "dependencies": {
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.1.1"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",
@@ -64,7 +64,7 @@
     "@vscode/test-electron": "^2.3.9",
     "eslint": "^8.56.0",
     "license-checker": "^25.0.0",
-    "mocha": "^10.2.0",
+    "mocha": "^10.8.2",
     "prettier": "^3.0.0",
     "typescript": "^5.4.3"
   }
