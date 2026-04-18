@@ -8,9 +8,12 @@ import * as cp from 'child_process';
 import { copyYamlDependenciesRecursively } from './dependencyCopy';
 
 let svgPreviewPanel: vscode.WebviewPanel | undefined;
-let yamlFilePath: string | undefined;
+let tempDir: string | undefined;
 let wordWrap: number | undefined;
 let lastSvgContent: string | undefined;
+let previewHistory: string[] = [];
+let historyIndex = -1;
+let currentSvgPath: string | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration('gsn2xPreview');
@@ -19,7 +22,7 @@ export function activate(context: vscode.ExtensionContext) {
   wordWrap = config.get<number>('wordWrap');
 
   // Create a temporary directory for SVG files
-  let tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gsn2x'));
+  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gsn2x'));
   let yamlWatcher: vscode.FileSystemWatcher | undefined;
 
   const isYamlFile = (filePath: string) => /\.(ya?ml)$/i.test(filePath);
@@ -29,8 +32,8 @@ export function activate(context: vscode.ExtensionContext) {
     yamlWatcher = vscode.workspace.createFileSystemWatcher(filePath);
     yamlWatcher.onDidChange(async (e) => {
       if (e.fsPath === filePath) {
-        const svg = await run_gsn2x(path_gsn2x, tempDir, filePath);
-        showSvgPreview(svg);
+        const result = await run_gsn2x(path_gsn2x, tempDir!, filePath);
+        showSvgPreview(result.svgContent, result.svgPath, false);
       }
     });
     context.subscriptions.push(yamlWatcher);
@@ -46,12 +49,15 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    yamlFilePath = filePath;
     watchYamlFile(filePath);
 
     try {
-      const svg = await run_gsn2x(path_gsn2x, tempDir, filePath);
-      showSvgPreview(svg);
+      if (filePath !== currentSvgPath) {
+        previewHistory = [];
+        historyIndex = -1;
+      }
+      const result = await run_gsn2x(path_gsn2x, tempDir!, filePath);
+      showSvgPreview(result.svgContent, result.svgPath, true);
     } catch (error) {
       console.error(error);
     }
@@ -73,7 +79,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.window.onDidChangeActiveColorTheme(() => {
       if (svgPreviewPanel && lastSvgContent) {
-        const html = generateHtmlFromSvg(lastSvgContent);
+        const html = generateHtmlFromSvg(lastSvgContent, canNavigateBack(), canNavigateForward());
         svgPreviewPanel.webview.html = html;
       }
     })
@@ -85,25 +91,31 @@ export function activate(context: vscode.ExtensionContext) {
   }
 }
 
+interface SvgResult {
+  svgContent: string;
+  svgPath: string;
+}
+
 async function run_gsn2x(
   command: string,
   outputPath: string,
   yamlFilePath: string
-): Promise<string> {
+): Promise<SvgResult> {
   // Execute the configured command-line tool
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<SvgResult>((resolve) => {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     const yamlintemp = copyYamlDependenciesRecursively(yamlFilePath, outputPath, workspaceFolder);
     const directory = path.dirname(yamlintemp);
     const baseName = path.basename(yamlintemp, path.extname(yamlintemp));
     const svgOutputPath = path.join(directory, `${baseName}.svg`);
-    let args = ['-E', yamlintemp, `-o=${outputPath}`];
+    const args = ['-E', yamlintemp, `-o=${outputPath}`];
     if (wordWrap) {
       args.push('-w=' + wordWrap.toString());
     }
     const childProcess = cp.execFile(command, args, (error, stdout, stderr) => {
       if (error) {
-        resolve(`<html>
+        resolve({
+          svgContent: `<html>
                             <head>
                                 <style>body { color: red; }</style>
                             </head>
@@ -112,10 +124,12 @@ async function run_gsn2x(
                                 <pre>${command}</pre>
                                 <pre>${stderr}</pre>
                             </body>
-                        </html>`);
+                        </html>`,
+          svgPath: svgOutputPath,
+        });
       } else {
         const svgContent = fs.readFileSync(svgOutputPath, 'utf8');
-        resolve(svgContent);
+        resolve({ svgContent, svgPath: svgOutputPath });
       }
     });
 
@@ -126,7 +140,11 @@ async function run_gsn2x(
   });
 }
 
-function generateHtmlFromSvg(svgContent: string): string {
+function generateHtmlFromSvg(
+  svgContent: string,
+  backEnabled: boolean,
+  forwardEnabled: boolean
+): string {
   const theme = vscode.window.activeColorTheme;
   const isDark =
     theme.kind === vscode.ColorThemeKind.Dark || theme.kind === vscode.ColorThemeKind.HighContrast;
@@ -203,6 +221,8 @@ function generateHtmlFromSvg(svgContent: string): string {
                 </head>
                 <body>
                     <div class="zoom-controls">
+                        <button id="nav-back" ${backEnabled ? '' : 'disabled'}>&larr;</button>
+                        <button id="nav-forward" ${forwardEnabled ? '' : 'disabled'}>&rarr;</button>
                         <button id="zoom-in">+</button>
                         <button id="zoom-out">-</button>
                         <button id="zoom-reset">Reset</button>
@@ -212,6 +232,7 @@ function generateHtmlFromSvg(svgContent: string): string {
                         ${svgContent}
                     </div>
                     <script>
+                        const vscode = acquireVsCodeApi();
                         window.addEventListener('DOMContentLoaded', () => {
                             let currentZoom = 1.0;
                             const zoomStep = 0.1;
@@ -219,6 +240,8 @@ function generateHtmlFromSvg(svgContent: string): string {
                             const maxZoom = 50.0;
                             const svgContainer = document.getElementById('svg-container');
                             const zoomInfo = document.getElementById('zoom-level');
+                            const navBackButton = document.getElementById('nav-back');
+                            const navForwardButton = document.getElementById('nav-forward');
                             const zoomInButton = document.getElementById('zoom-in');
                             const zoomOutButton = document.getElementById('zoom-out');
                             const resetButton = document.getElementById('zoom-reset');
@@ -251,6 +274,16 @@ function generateHtmlFromSvg(svgContent: string): string {
                                 updateZoom();
                             }
 
+                            if (navBackButton) {
+                                navBackButton.addEventListener('click', () => {
+                                    vscode.postMessage({ command: 'goBack' });
+                                });
+                            }
+                            if (navForwardButton) {
+                                navForwardButton.addEventListener('click', () => {
+                                    vscode.postMessage({ command: 'goForward' });
+                                });
+                            }
                             if (zoomInButton) {
                                 zoomInButton.addEventListener('click', zoomIn);
                             }
@@ -273,7 +306,7 @@ function generateHtmlFromSvg(svgContent: string): string {
                             });
 
                             document.addEventListener('keydown', function(e) {
-                                if (e.ctrlKey) {
+                                if (e.ctrlKey || e.metaKey) {
                                     switch (e.key) {
                                         case '=':
                                         case '+':
@@ -292,6 +325,17 @@ function generateHtmlFromSvg(svgContent: string): string {
                                 }
                             });
 
+                            const anchors = document.querySelectorAll('a');
+                            anchors.forEach((anchor) => {
+                                anchor.addEventListener('click', function (event) {
+                                    event.preventDefault();
+                                    const href = anchor.getAttribute('href') || anchor.getAttribute('xlink:href');
+                                    if (href) {
+                                        vscode.postMessage({ command: 'navigateLink', href });
+                                    }
+                                });
+                            });
+
                             updateZoom();
                         });
                     </script>
@@ -299,9 +343,21 @@ function generateHtmlFromSvg(svgContent: string): string {
              </html>`;
 }
 
-function showSvgPreview(svg: string) {
+function showSvgPreview(svg: string, svgPath?: string, addToHistory = false) {
   lastSvgContent = svg;
-  const html = generateHtmlFromSvg(svg);
+
+  if (svgPath) {
+    currentSvgPath = svgPath;
+    if (addToHistory) {
+      if (historyIndex < previewHistory.length - 1) {
+        previewHistory = previewHistory.slice(0, historyIndex + 1);
+      }
+      previewHistory.push(svgPath);
+      historyIndex = previewHistory.length - 1;
+    }
+  }
+
+  const html = generateHtmlFromSvg(svg, canNavigateBack(), canNavigateForward());
   if (svgPreviewPanel) {
     // Update existing preview
     svgPreviewPanel.webview.html = html;
@@ -315,12 +371,108 @@ function showSvgPreview(svg: string) {
         enableScripts: true,
       }
     );
+
+    svgPreviewPanel.webview.onDidReceiveMessage(async (message) => {
+      if (!message || !message.command) {
+        return;
+      }
+
+      switch (message.command) {
+        case 'navigateLink': {
+          await handleSvgLink(message.href);
+          break;
+        }
+        case 'goBack': {
+          navigateHistory(-1);
+          break;
+        }
+        case 'goForward': {
+          navigateHistory(1);
+          break;
+        }
+      }
+    });
+
     svgPreviewPanel.webview.html = html;
 
     // Dispose the panel when closed
     svgPreviewPanel.onDidDispose(() => {
       svgPreviewPanel = undefined;
     });
+  }
+}
+
+async function handleSvgLink(href: string): Promise<void> {
+  if (!href || href.startsWith('javascript:') || href.startsWith('#')) {
+    return;
+  }
+
+  const isExternal = /^(https?:|mailto:|tel:)/i.test(href);
+  if (isExternal) {
+    const open = 'Open externally';
+    const choice = await vscode.window.showWarningMessage(
+      'This link points outside the preview. Open in your browser?',
+      { modal: true },
+      open,
+      'Cancel'
+    );
+    if (choice === open) {
+      vscode.env.openExternal(vscode.Uri.parse(href));
+    }
+    return;
+  }
+
+  const baseDir = currentSvgPath ? path.dirname(currentSvgPath) : tempDir || '';
+  const targetPath = path.isAbsolute(href) ? href : path.join(baseDir, href);
+
+  if (!fs.existsSync(targetPath)) {
+    vscode.window.showWarningMessage(`Referenced file not found: ${href}`);
+    return;
+  }
+
+  if (tempDir && !targetPath.startsWith(tempDir)) {
+    const open = 'Open externally';
+    const choice = await vscode.window.showWarningMessage(
+      'The referenced file is outside the preview folder. Open it externally?',
+      { modal: false },
+      open,
+      'Cancel'
+    );
+    if (choice === open) {
+      vscode.env.openExternal(vscode.Uri.file(targetPath));
+    }
+    return;
+  }
+
+  try {
+    const svgContent = fs.readFileSync(targetPath, 'utf8');
+    showSvgPreview(svgContent, targetPath, true);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function canNavigateBack(): boolean {
+  return historyIndex > 0;
+}
+
+function canNavigateForward(): boolean {
+  return historyIndex < previewHistory.length - 1;
+}
+
+function navigateHistory(step: number) {
+  const newIndex = historyIndex + step;
+  if (newIndex < 0 || newIndex >= previewHistory.length) {
+    return;
+  }
+
+  historyIndex = newIndex;
+  const targetPath = previewHistory[historyIndex];
+  try {
+    const svgContent = fs.readFileSync(targetPath, 'utf8');
+    showSvgPreview(svgContent, targetPath, false);
+  } catch (error) {
+    console.error(error);
   }
 }
 
