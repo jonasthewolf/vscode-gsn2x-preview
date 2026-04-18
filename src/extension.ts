@@ -109,13 +109,159 @@ function generateHtmlFromSvg(svgContent: string): string {
                         body {
                             background-color: ${isDark ? '#1e1e1e' : 'white'};
                             color: ${isDark ? 'white' : 'black'};
+                            margin: 0;
+                            padding: 20px;
+                            overflow: auto;
+                            min-height: 100vh;
+                        }
+                        .svg-container {
+                            display: block;
+                            width: 100%;
+                            margin: 0;
+                            padding: 0;
+                            min-width: 100px;
+                            min-height: 100px;
+                            transform-origin: top left;
+                            transition: transform 0.1s ease;
+                            transform: scale(1);
                         }
                         svg {
                             ${svgFilter}
+                            width: 100%;
+                            height: auto;
+                            max-width: 100%;
+                            display: block;
+                            transform-origin: top left;
+                            transform-box: fill-box;
+                        }
+                        .zoom-controls {
+                            position: fixed;
+                            top: 10px;
+                            right: 10px;
+                            background: ${isDark ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)'};
+                            border: 1px solid ${isDark ? '#555' : '#ccc'};
+                            border-radius: 4px;
+                            padding: 5px;
+                            z-index: 1000;
+                            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                        }
+                        .zoom-controls button {
+                            background: ${isDark ? '#444' : '#f0f0f0'};
+                            color: ${isDark ? 'white' : 'black'};
+                            border: 1px solid ${isDark ? '#666' : '#ccc'};
+                            padding: 5px 10px;
+                            margin: 0 2px;
+                            border-radius: 3px;
+                            cursor: pointer;
+                            font-size: 14px;
+                        }
+                        .zoom-controls button:hover {
+                            background: ${isDark ? '#555' : '#e0e0e0'};
+                        }
+                        .zoom-info {
+                            display: inline-block;
+                            margin: 0 10px;
+                            font-family: monospace;
+                            font-size: 12px;
+                            font-weight: bold;
                         }
                     </style>
                 </head>
-                <body>${svgContent}</body>
+                <body>
+                    <div class="zoom-controls">
+                        <button id="zoom-in">+</button>
+                        <button id="zoom-out">-</button>
+                        <button id="zoom-reset">Reset</button>
+                        <span class="zoom-info" id="zoom-level">100%</span>
+                    </div>
+                    <div class="svg-container" id="svg-container">
+                        ${svgContent}
+                    </div>
+                    <script>
+                        window.addEventListener('DOMContentLoaded', () => {
+                            let currentZoom = 1.0;
+                            const zoomStep = 0.1;
+                            const minZoom = 0.02;
+                            const maxZoom = 50.0;
+                            const svgContainer = document.getElementById('svg-container');
+                            const zoomInfo = document.getElementById('zoom-level');
+                            const zoomInButton = document.getElementById('zoom-in');
+                            const zoomOutButton = document.getElementById('zoom-out');
+                            const resetButton = document.getElementById('zoom-reset');
+
+                            function updateZoom() {
+                                if (svgContainer) {
+                                    svgContainer.style.transform = 'scale(' + currentZoom + ')';
+                                }
+                                if (zoomInfo) {
+                                    zoomInfo.textContent = Math.round(currentZoom * 100) + '%';
+                                }
+                            }
+
+                            function zoomIn() {
+                                if (currentZoom < maxZoom) {
+                                    currentZoom = Math.min(maxZoom, currentZoom + zoomStep);
+                                    updateZoom();
+                                }
+                            }
+
+                            function zoomOut() {
+                                if (currentZoom > minZoom) {
+                                    currentZoom = Math.max(minZoom, currentZoom - zoomStep);
+                                    updateZoom();
+                                }
+                            }
+
+                            function resetZoom() {
+                                currentZoom = 1.0;
+                                updateZoom();
+                            }
+
+                            if (zoomInButton) {
+                                zoomInButton.addEventListener('click', zoomIn);
+                            }
+                            if (zoomOutButton) {
+                                zoomOutButton.addEventListener('click', zoomOut);
+                            }
+                            if (resetButton) {
+                                resetButton.addEventListener('click', resetZoom);
+                            }
+
+                            document.addEventListener('wheel', function(e) {
+                                if (e.ctrlKey) {
+                                    e.preventDefault();
+                                    if (e.deltaY < 0) {
+                                        zoomIn();
+                                    } else {
+                                        zoomOut();
+                                    }
+                                }
+                            });
+
+                            document.addEventListener('keydown', function(e) {
+                                if (e.ctrlKey) {
+                                    switch (e.key) {
+                                        case '=':
+                                        case '+':
+                                            e.preventDefault();
+                                            zoomIn();
+                                            break;
+                                        case '-':
+                                            e.preventDefault();
+                                            zoomOut();
+                                            break;
+                                        case '0':
+                                            e.preventDefault();
+                                            resetZoom();
+                                            break;
+                                    }
+                                }
+                            });
+
+                            updateZoom();
+                        });
+                    </script>
+                </body>
              </html>`;
 }
 
@@ -131,7 +277,9 @@ function showSvgPreview(svg: string) {
             'gsnPreview',
             'GSN Preview',
             vscode.ViewColumn.Beside,
-            {}
+            {
+                enableScripts: true
+            }
         );
         svgPreviewPanel.webview.html = html;
         
