@@ -11,11 +11,12 @@ export function copyYamlDependenciesRecursively(
   entryPath: string,
   outputPath: string,
   copyRoot?: string
-): string {
+): { copiedEntryPath: string; copiedToOriginal: Map<string, string> } {
   const root = copyRoot && entryPath.startsWith(copyRoot) ? copyRoot : path.dirname(entryPath);
 
   const visited = new Set<string>();
   const queue = [entryPath];
+  const copiedToOriginal = new Map<string, string>();
 
   while (queue.length > 0) {
     const currentPath = queue.shift() as string;
@@ -29,6 +30,7 @@ export function copyYamlDependenciesRecursively(
     const destinationPath = path.join(outputPath, normalizedRelative);
     fs.mkdirSync(path.dirname(destinationPath), { recursive: true });
     fs.copyFileSync(currentPath, destinationPath);
+    copiedToOriginal.set(destinationPath, currentPath);
 
     const uses = getUsesFromYamlFile(currentPath);
     uses.forEach((useEntry) => {
@@ -42,5 +44,6 @@ export function copyYamlDependenciesRecursively(
   }
 
   const entryRelative = normalizeRelativePath(path.relative(root, entryPath));
-  return path.join(outputPath, entryRelative);
+  const copiedEntryPath = path.join(outputPath, entryRelative);
+  return { copiedEntryPath, copiedToOriginal };
 }

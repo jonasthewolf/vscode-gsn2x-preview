@@ -14,6 +14,8 @@ let lastSvgContent: string | undefined;
 let previewHistory: string[] = [];
 let historyIndex = -1;
 let currentSvgPath: string | undefined;
+let currentYamlPath: string | undefined;
+let svgToYaml: Map<string, string> = new Map();
 
 export function activate(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration('gsn2xPreview');
@@ -33,7 +35,7 @@ export function activate(context: vscode.ExtensionContext) {
     yamlWatcher.onDidChange(async (e) => {
       if (e.fsPath === filePath) {
         const result = await run_gsn2x(path_gsn2x, tempDir!, filePath);
-        showSvgPreview(result.svgContent, result.svgPath, false);
+        showSvgPreview(result.svgContent, result.svgPath, false, filePath);
       }
     });
     context.subscriptions.push(yamlWatcher);
@@ -57,7 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
         historyIndex = -1;
       }
       const result = await run_gsn2x(path_gsn2x, tempDir!, filePath);
-      showSvgPreview(result.svgContent, result.svgPath, true);
+      showSvgPreview(result.svgContent, result.svgPath, true, filePath);
     } catch (error) {
       console.error(error);
     }
@@ -79,7 +81,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.window.onDidChangeActiveColorTheme(() => {
       if (svgPreviewPanel && lastSvgContent) {
-        const html = generateHtmlFromSvg(lastSvgContent, canNavigateBack(), canNavigateForward());
+        const html = generateHtmlFromSvg(lastSvgContent, canNavigateBack(), canNavigateForward(), currentYamlPath);
         svgPreviewPanel.webview.html = html;
       }
     })
@@ -104,7 +106,8 @@ async function run_gsn2x(
   // Execute the configured command-line tool
   return new Promise<SvgResult>((resolve) => {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    const yamlintemp = copyYamlDependenciesRecursively(yamlFilePath, outputPath, workspaceFolder);
+    const { copiedEntryPath, copiedToOriginal } = copyYamlDependenciesRecursively(yamlFilePath, outputPath, workspaceFolder);
+    const yamlintemp = copiedEntryPath;
     const directory = path.dirname(yamlintemp);
     const baseName = path.basename(yamlintemp, path.extname(yamlintemp));
     const svgOutputPath = path.join(directory, `${baseName}.svg`);
@@ -129,6 +132,14 @@ async function run_gsn2x(
         });
       } else {
         const svgContent = fs.readFileSync(svgOutputPath, 'utf8');
+        for (const [copiedYaml, originalYaml] of copiedToOriginal) {
+          const dir = path.dirname(copiedYaml);
+          const baseName = path.basename(copiedYaml, path.extname(copiedYaml));
+          const svgPath = path.join(dir, baseName + '.svg');
+          if (fs.existsSync(svgPath)) {
+            svgToYaml.set(svgPath, originalYaml);
+          }
+        }
         resolve({ svgContent, svgPath: svgOutputPath });
       }
     });
@@ -144,6 +155,7 @@ function generateHtmlFromSvg(
   svgContent: string,
   backEnabled: boolean,
   forwardEnabled: boolean,
+  yamlPath?: string,
   anchor?: string
 ): string {
   const theme = vscode.window.activeColorTheme;
@@ -160,7 +172,7 @@ function generateHtmlFromSvg(
                             background-color: ${isDark ? '#1e1e1e' : 'white'};
                             color: ${isDark ? 'white' : 'black'};
                             margin: 0;
-                            padding: 20px;
+                            padding: 40px 20px 20px 20px;
                             overflow: auto;
                             min-height: 100vh;
                         }
@@ -189,7 +201,7 @@ function generateHtmlFromSvg(
                         }
                         .zoom-controls {
                             position: fixed;
-                            top: 10px;
+                            top: 35px;
                             right: 10px;
                             background: ${isDark ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)'};
                             border: 1px solid ${isDark ? '#555' : '#ccc'};
@@ -218,9 +230,28 @@ function generateHtmlFromSvg(
                             font-size: 12px;
                             font-weight: bold;
                         }
+                        .file-path-bar {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            background-color: ${isDark ? '#1e1e1e' : 'white'};
+                            color: ${isDark ? 'white' : 'black'};
+                            padding: 5px 10px;
+                            font-family: var(--vscode-font-family);
+                            font-size: 12px;
+                            border-bottom: 1px solid ${isDark ? '#3e3e42' : '#cccccc'};
+                            z-index: 1001;
+                        }
+                        .file-path {
+                            font-weight: 600;
+                        }
                     </style>
                 </head>
                 <body>
+                    <div class="file-path-bar">
+                        <span class="file-path">${yamlPath ? vscode.workspace.asRelativePath(yamlPath) : 'Unknown'}</span>
+                    </div>
                     <div class="zoom-controls">
                         <button id="nav-back" ${backEnabled ? '' : 'disabled'}>&larr;</button>
                         <button id="nav-forward" ${forwardEnabled ? '' : 'disabled'}>&rarr;</button>
@@ -360,7 +391,7 @@ function generateHtmlFromSvg(
              </html>`;
 }
 
-function showSvgPreview(svg: string, svgPath?: string, addToHistory = false, anchor?: string) {
+function showSvgPreview(svg: string, svgPath?: string, addToHistory = false, yamlPath?: string, anchor?: string) {
   lastSvgContent = svg;
 
   if (svgPath) {
@@ -374,7 +405,13 @@ function showSvgPreview(svg: string, svgPath?: string, addToHistory = false, anc
     }
   }
 
-  const html = generateHtmlFromSvg(svg, canNavigateBack(), canNavigateForward(), anchor);
+  if (yamlPath) {
+    currentYamlPath = yamlPath;
+  } else if (svgPath && svgToYaml.has(svgPath)) {
+    currentYamlPath = svgToYaml.get(svgPath)!;
+  }
+
+  const html = generateHtmlFromSvg(svg, canNavigateBack(), canNavigateForward(), currentYamlPath, anchor);
   if (svgPreviewPanel) {
     // Update existing preview
     svgPreviewPanel.webview.html = html;
@@ -474,7 +511,7 @@ async function handleSvgLink(href: string): Promise<void> {
 
   try {
     const svgContent = fs.readFileSync(targetPath, 'utf8');
-    showSvgPreview(svgContent, targetPath, true, anchor);
+    showSvgPreview(svgContent, targetPath, true, svgToYaml.get(targetPath), anchor);
   } catch (error) {
     console.error(error);
   }
@@ -498,7 +535,7 @@ function navigateHistory(step: number) {
   const targetPath = previewHistory[historyIndex];
   try {
     const svgContent = fs.readFileSync(targetPath, 'utf8');
-    showSvgPreview(svgContent, targetPath, false);
+    showSvgPreview(svgContent, targetPath, false, svgToYaml.get(targetPath));
   } catch (error) {
     console.error(error);
   }
