@@ -47,7 +47,7 @@
     "format": "prettier --write \"src/**/*.{ts,js}\" \"package.json\" \"README.md\" \"tsconfig.json\" \".eslintrc.json\" \".prettierrc\" \".github/workflows/ci.yml\"",
     "format:check": "prettier --check \"src/**/*.{ts,js}\" \"package.json\" \"README.md\" \"tsconfig.json\" \".eslintrc.json\" \".prettierrc\" \".github/workflows/ci.yml\"",
     "audit": "npm audit --production --audit-level=moderate",
-    "check-license": "license-checker --production --onlyAllow \"MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC\""
+    "check-license": "license-checker --production --onlyAllow \"MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;Python-2.0\""
   },
   "dependencies": {
     "js-yaml": "^4.1.0"
