@@ -17,3 +17,5 @@
   - [] Once a week, check for updates on github
   - [] Add a setting to go for the latest version
 - [] Split CI pipelines
+- [] Enable tests again
+- [] Write some tests
