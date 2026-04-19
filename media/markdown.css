@@ -57,6 +57,12 @@ ul, ol {
     margin-bottom: 1em;
 }
 
+li {
+    margin-bottom: 0.5em;
+    margin-top: 0.5em;
+    line-height: 1.5;
+}
+
 blockquote {
     border-left: 4px solid #ccc;
     padding-left: 1em;

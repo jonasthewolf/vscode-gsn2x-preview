@@ -6,6 +6,7 @@ function simpleMarkdownParse(md) {
     let inCodeBlock = false;
     let codeBlock = "";
     const listStack = [];
+    let currentListItem = null;
 
     function getIndent(line) {
         let indent = 0;
@@ -13,7 +14,23 @@ function simpleMarkdownParse(md) {
         return indent;
     }
 
+    function isListMarker(line) {
+        // Check for ordered list (1., 2., etc.) or unordered list (-)
+        return /^\d+\.\s/.test(line) || /^-\s/.test(line);
+    }
+
+    function flushCurrentListItem() {
+        if (currentListItem && listStack.length > 0) {
+            const list = listStack[listStack.length - 1];
+            if (currentListItem.content) {
+                html += "<li>" + currentListItem.content + "</li>";
+            }
+            currentListItem = null;
+        }
+    }
+
     function closeLists(targetIndent) {
+        flushCurrentListItem();
         while (listStack.length > 0 && listStack[listStack.length - 1].indent >= targetIndent) {
             const list = listStack.pop();
             html += list.type === "ol" ? "</ol>" : "</ul>";
@@ -22,7 +39,9 @@ function simpleMarkdownParse(md) {
 
     for (let i = 0; i < lines.length; i++) {
         let line = lines[i];
-        if (line.startsWith("```")) {
+
+        // Code blocks
+        if (line.trim().startsWith("```")) {
             closeLists(0);
             if (inCodeBlock) {
                 html += "<pre><code>" + codeBlock + "</code></pre>";
@@ -41,6 +60,21 @@ function simpleMarkdownParse(md) {
         const indent = getIndent(line);
         const trimmed = line.substring(indent);
 
+        // Check if this is a list item continuation (indented content within a list item)
+        if (listStack.length > 0 && currentListItem && indent > listStack[listStack.length - 1].indent) {
+            // This is a continuation of the current list item
+            const content = trimmed;
+            if (content) {
+                if (currentListItem.content) {
+                    currentListItem.content += "<br>" + content;
+                } else {
+                    currentListItem.content = content;
+                }
+            }
+            continue;
+        }
+
+        // Headers
         if (trimmed.startsWith("# ")) {
             closeLists(0);
             html += "<h1>" + trimmed.substring(2) + "</h1>";
@@ -54,29 +88,48 @@ function simpleMarkdownParse(md) {
             closeLists(0);
             html += "<h4>" + trimmed.substring(5) + "</h4>";
         } else if (trimmed.match(/^\d+\. /)) {
-            closeLists(indent);
+            // Ordered list item
+            flushCurrentListItem();
+            // Only close lists nested deeper than this item's indent
+            while (listStack.length > 0 && listStack[listStack.length - 1].indent > indent) {
+                const list = listStack.pop();
+                html += list.type === "ol" ? "</ol>" : "</ul>";
+            }
             if (listStack.length === 0 || listStack[listStack.length - 1].indent < indent) {
                 html += "<ol>";
                 listStack.push({ type: "ol", indent });
             }
-            html += "<li>" + trimmed.replace(/^\d+\. /, "") + "</li>";
+            const itemContent = trimmed.replace(/^\d+\.\s/, "");
+            currentListItem = { content: itemContent };
         } else if (trimmed.startsWith("- ")) {
-            closeLists(indent);
+            // Unordered list item
+            flushCurrentListItem();
+            while (listStack.length > 0 && listStack[listStack.length - 1].indent > indent) {
+                const list = listStack.pop();
+                html += list.type === "ul" ? "</ul>" : "</ol>";
+            }
             if (listStack.length === 0 || listStack[listStack.length - 1].indent < indent) {
                 html += "<ul>";
                 listStack.push({ type: "ul", indent });
             }
-            html += "<li>" + trimmed.substring(2) + "</li>";
+            const itemContent = trimmed.substring(2);
+            currentListItem = { content: itemContent };
         } else if (trimmed === "") {
-            closeLists(0);
-            html += "<br>";
+            // Empty line - preserve it in list items, but don't close lists
+            if (currentListItem) {
+                // currentListItem.content += "<br>";
+            } else {
+                closeLists(0);
+                html += "<br>";
+            }
         } else {
+            // Regular paragraph
             closeLists(0);
-            line = trimmed;
-            line = line.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
-            line = line.replace(/\*(.*?)\*/g, "<i>$1</i>");
-            line = line.replace(/`([^`]+)`/g, "<code>$1</code>");
-            html += "<p>" + line + "</p>";
+            let content = trimmed;
+            content = content.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
+            content = content.replace(/\*(.*?)\*/g, "<i>$1</i>");
+            content = content.replace(/`([^`]+)`/g, "<code>$1</code>");
+            html += "<p>" + content + "</p>";
         }
     }
 
