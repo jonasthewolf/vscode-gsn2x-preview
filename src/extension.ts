@@ -7,6 +7,7 @@ import * as os from 'os';
 import * as cp from 'child_process';
 import { copyYamlDependenciesRecursively } from './dependencyCopy';
 import { generateMarkdownHtml } from './markdownRenderer';
+import { resolveGsn2xExecutable, scheduleUpdateCheck, ReleaseChannel } from './gsn2xDownloader';
 
 let svgPreviewPanel: vscode.WebviewPanel | undefined;
 let tempDir: string | undefined;
@@ -23,12 +24,29 @@ let completePath: string | undefined;
 let architecturePath: string | undefined;
 let extensionUri: vscode.Uri | undefined;
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
   extensionUri = context.extensionUri;
   const config = vscode.workspace.getConfiguration('gsn2xPreview');
-  const defaultPath = process.platform === 'win32' ? 'gsn2x.exe' : 'gsn2x';
-  const path_gsn2x = config.get<string>('gsn2xPath') ?? defaultPath;
   wordWrap = config.get<number>('wordWrap');
+
+  // Determine which release channel to use for downloads / update checks.
+  const useNightly = config.get<boolean>('useNightlyBuilds') ?? false;
+  const channel: ReleaseChannel = useNightly ? 'nightly' : 'stable';
+
+  // Resolve the gsn2x binary, downloading it if necessary.
+  // Returns undefined if the user declines or the download fails – in that
+  // case commands will show a clear error when invoked.
+  const resolvedPath = await resolveGsn2xExecutable(context, channel);
+  const path_gsn2x = resolvedPath ?? (process.platform === 'win32' ? 'gsn2x.exe' : 'gsn2x');
+
+  if (!resolvedPath) {
+    vscode.window.showWarningMessage(
+      'gsn2x Preview: binary not available. Configure the path in settings or run "Preview GSN File" again to retry downloading.'
+    );
+  } else {
+    // Binary is available – schedule a background weekly update check.
+    scheduleUpdateCheck(context, channel);
+  }
 
   // Create a temporary directory for SVG files
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gsn2x'));

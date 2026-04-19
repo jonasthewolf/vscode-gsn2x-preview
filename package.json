@@ -5,7 +5,7 @@
   "repository": {
     "url": "https://github.com/jonasthewolf/vscode-gsn2x-preview"
   },
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "publisher": "jonaswolf-org",
   "engines": {
@@ -35,6 +35,11 @@
           "type": "integer",
           "default": 15,
           "description": "Maximum width for text wrapping in diagrams (characters)"
+        },
+        "gsn2xPreview.useNightlyBuilds": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use the latest nightly (pre-release) build of gsn2x instead of the latest stable release when downloading or checking for updates."
         }
       }
     }
