@@ -21,8 +21,10 @@ let statisticsPath: string | undefined;
 let evidencePath: string | undefined;
 let completePath: string | undefined;
 let architecturePath: string | undefined;
+let extensionUri: vscode.Uri | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
+  extensionUri = context.extensionUri;
   const config = vscode.workspace.getConfiguration('gsn2xPreview');
   const defaultPath = process.platform === 'win32' ? 'gsn2x.exe' : 'gsn2x';
   const path_gsn2x = config.get<string>('gsn2xPath') ?? defaultPath;
@@ -515,17 +517,17 @@ function showSvgPreview(svg: string, svgPath?: string, addToHistory = false, yam
           break;
         }
         case 'showStatistics': {
-          if (statisticsPath && svgPreviewPanel) {
+          if (statisticsPath && svgPreviewPanel && extensionUri) {
             const content = fs.readFileSync(statisticsPath, 'utf8');
-            const html = generateMarkdownHtml(content);
+            const html = generateMarkdownHtml(content, svgPreviewPanel.webview, extensionUri);
             svgPreviewPanel.webview.html = html;
           }
           break;
         }
         case 'showEvidence': {
-          if (evidencePath && svgPreviewPanel) {
+          if (evidencePath && svgPreviewPanel && extensionUri) {
             const content = fs.readFileSync(evidencePath, 'utf8');
-            const html = generateMarkdownHtml(content);
+            const html = generateMarkdownHtml(content, svgPreviewPanel.webview, extensionUri);
             svgPreviewPanel.webview.html = html;
           }
           break;

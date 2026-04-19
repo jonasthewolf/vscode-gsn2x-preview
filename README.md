@@ -5,25 +5,19 @@ A VS Code extension that provides live preview of GSN (Goal Structuring Notation
 ## Features
 
 ### Core Functionality
+
 - **Live Preview**: Automatically generates and displays SVG diagrams from GSN YAML files using `gsn2x`
 - **Interactive Navigation**: Click on links in diagrams to navigate between related GSN elements
 - **Navigation History**: Use back/forward buttons to navigate through diagram history
 - **Zoom Controls**: Zoom in/out and reset zoom with mouse wheel or keyboard shortcuts (Ctrl+Scroll, Ctrl+/-, Ctrl+0)
 
 ### Additional Views
+
 - **Statistics**: View generated statistics about the GSN model
 - **Evidence**: Display evidence files associated with the GSN model
 - **Complete View**: Access the complete diagram view (if generated)
 - **Architecture View**: View the architecture diagram (if generated)
 
-### User Interface
-- **File Path Display**: Shows the current YAML file path at the top of the preview
-- **Responsive Design**: Adapts to VS Code's light and dark themes
-- **Markdown Rendering**: Properly renders statistics and evidence files with support for:
-  - Headers (H1-H4)
-  - Ordered and unordered lists (including nested lists)
-  - Inline formatting (bold, italic, code)
-  - Code blocks
 
 ## Requirements
 
@@ -50,6 +44,7 @@ This extension contributes the following settings:
 5. Use the buttons at the bottom to view statistics, evidence, or additional diagram views
 
 ### Keyboard Shortcuts
+
 - `Ctrl+Scroll`: Zoom in/out
 - `Ctrl++`: Zoom in
 - `Ctrl+-`: Zoom out
@@ -59,13 +54,13 @@ This extension contributes the following settings:
 
 - The extension requires `gsn2x` to be properly installed and configured
 - Some complex GSN models may take time to render
-- Webview developer tools access is limited for security reasons
 
 ## Release Notes
 
 ### 0.0.1
 
 Initial release with core GSN preview functionality:
+
 - Basic SVG diagram rendering
 - Link navigation
 - Zoom controls
