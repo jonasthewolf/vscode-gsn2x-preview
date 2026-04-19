@@ -1,5 +1,44 @@
 const vscode = acquireVsCodeApi();
 
+// ── Statistics block renderer ─────────────────────────────────────────────────
+// Detects the fixed-width key: value layout produced by gsn2x and renders it
+// as a styled <dl> rather than going through the generic Markdown parser.
+
+function isStatisticsContent(md) {
+    return md.split("\n").some(l => l.trim() === "Statistics");
+}
+
+function renderStatisticsBlock(line) {
+    const trimmed = line.trimEnd();
+    if (trimmed.trim() === "") return "";
+
+    const colonIdx = trimmed.indexOf(":");
+    if (colonIdx === -1) {
+        // Section heading (e.g. "Statistics", "Number of modules: 1" without indent)
+        return `<dt class="stats-section">${trimmed.trim()}</dt>`;
+    }
+
+    const key = trimmed.substring(0, colonIdx).trim();
+    const value = trimmed.substring(colonIdx + 1).trim();
+    // Leading spaces before the key indicate a sub-item
+    const indent = trimmed.length - trimmed.trimStart().length;
+    const cls = indent > 0 ? "stats-sub" : "stats-top";
+
+    return `<dt class="${cls}">${key}</dt><dd>${value}</dd>`;
+}
+
+function parseStatistics(md) {
+    const lines = md.split("\n");
+    let html = '<dl class="stats">';
+    for (const line of lines) {
+        html += renderStatisticsBlock(line);
+    }
+    html += "</dl>";
+    return html;
+}
+
+// ── Generic Markdown parser ───────────────────────────────────────────────────
+
 function simpleMarkdownParse(md) {
     const lines = md.split("\n");
     let html = "";
@@ -14,14 +53,11 @@ function simpleMarkdownParse(md) {
         return indent;
     }
 
-    // Apply inline formatting: bold, italic, code, and links.
     function inlineFormat(text) {
-        // Markdown links: [label](url)
         text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
             const escaped = url.replace(/'/g, "\\'");
             return `<a href="#" onclick="vscode.postMessage({command:'navigateLink',href:'${escaped}'});return false;">${label}</a>`;
         });
-        // Bare URLs not already wrapped in an <a> tag.
         text = text.replace(/(?<!href=['"])https?:\/\/[^\s<"')]+/g, (url) => {
             const escaped = url.replace(/'/g, "\\'");
             return `<a href="#" onclick="vscode.postMessage({command:'navigateLink',href:'${escaped}'});return false;">${url}</a>`;
@@ -52,7 +88,6 @@ function simpleMarkdownParse(md) {
     for (let i = 0; i < lines.length; i++) {
         let line = lines[i];
 
-        // Code blocks
         if (line.trim().startsWith("```")) {
             closeLists(0);
             if (inCodeBlock) {
@@ -64,72 +99,49 @@ function simpleMarkdownParse(md) {
             }
             continue;
         }
-        if (inCodeBlock) {
-            codeBlock += line + "\n";
-            continue;
-        }
+        if (inCodeBlock) { codeBlock += line + "\n"; continue; }
 
         const indent = getIndent(line);
         const trimmed = line.substring(indent);
 
-        // List item continuation (indented content within a list item)
         if (listStack.length > 0 && currentListItem && indent > listStack[listStack.length - 1].indent) {
-            if (trimmed) {
-                currentListItem.content += "<br>" + trimmed;
-            }
+            if (trimmed) { currentListItem.content += "<br>" + trimmed; }
             continue;
         }
 
-        // Explicit Markdown headers
         if (trimmed.startsWith("# ")) {
-            closeLists(0);
-            html += "<h1>" + inlineFormat(trimmed.substring(2)) + "</h1>";
+            closeLists(0); html += "<h1>" + inlineFormat(trimmed.substring(2)) + "</h1>";
         } else if (trimmed.startsWith("## ")) {
-            closeLists(0);
-            html += "<h2>" + inlineFormat(trimmed.substring(3)) + "</h2>";
+            closeLists(0); html += "<h2>" + inlineFormat(trimmed.substring(3)) + "</h2>";
         } else if (trimmed.startsWith("### ")) {
-            closeLists(0);
-            html += "<h3>" + inlineFormat(trimmed.substring(4)) + "</h3>";
+            closeLists(0); html += "<h3>" + inlineFormat(trimmed.substring(4)) + "</h3>";
         } else if (trimmed.startsWith("#### ")) {
-            closeLists(0);
-            html += "<h4>" + inlineFormat(trimmed.substring(5)) + "</h4>";
-
-        // Treat known section titles as implicit h1 headings.
+            closeLists(0); html += "<h4>" + inlineFormat(trimmed.substring(5)) + "</h4>";
         } else if (trimmed === "Statistics" || trimmed === "List of Evidence") {
-            closeLists(0);
-            html += "<h1>" + trimmed + "</h1>";
-
+            closeLists(0); html += "<h1>" + trimmed + "</h1>";
         } else if (trimmed.match(/^\d+\. /)) {
-            // Ordered list item
             flushCurrentListItem();
             while (listStack.length > 0 && listStack[listStack.length - 1].indent > indent) {
                 const list = listStack.pop();
                 html += list.type === "ol" ? "</ol>" : "</ul>";
             }
             if (listStack.length === 0 || listStack[listStack.length - 1].indent < indent) {
-                html += "<ol>";
-                listStack.push({ type: "ol", indent });
+                html += "<ol>"; listStack.push({ type: "ol", indent });
             }
             currentListItem = { content: trimmed.replace(/^\d+\.\s/, "") };
         } else if (trimmed.startsWith("- ")) {
-            // Unordered list item
             flushCurrentListItem();
             while (listStack.length > 0 && listStack[listStack.length - 1].indent > indent) {
                 const list = listStack.pop();
                 html += list.type === "ul" ? "</ul>" : "</ol>";
             }
             if (listStack.length === 0 || listStack[listStack.length - 1].indent < indent) {
-                html += "<ul>";
-                listStack.push({ type: "ul", indent });
+                html += "<ul>"; listStack.push({ type: "ul", indent });
             }
             currentListItem = { content: trimmed.substring(2) };
         } else if (trimmed === "") {
-            if (!currentListItem) {
-                closeLists(0);
-                html += "<br>";
-            }
+            if (!currentListItem) { closeLists(0); html += "<br>"; }
         } else {
-            // Regular paragraph
             closeLists(0);
             html += "<p>" + inlineFormat(trimmed) + "</p>";
         }
@@ -139,13 +151,19 @@ function simpleMarkdownParse(md) {
     return html;
 }
 
+// ── Entry points ──────────────────────────────────────────────────────────────
+
 function renderMarkdown() {
     const contentDiv = document.getElementById("content");
-    if (!contentDiv) {
-        return;
-    }
+    if (!contentDiv) { return; }
     const content = window.markdownContent || "";
-    contentDiv.innerHTML = simpleMarkdownParse(content);
+
+    if (isStatisticsContent(content)) {
+        contentDiv.classList.add("stats-view");
+        contentDiv.innerHTML = parseStatistics(content);
+    } else {
+        contentDiv.innerHTML = simpleMarkdownParse(content);
+    }
 }
 
 function attachBackButtonHandler() {

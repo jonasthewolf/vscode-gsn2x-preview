@@ -8,10 +8,10 @@
   - [X] Evidences
 - [x] Allow following links above and going back and forth
 - [x] Show the path to the input YAML in the top of the preview (similar to normal code editor)
-- [] Improve Markdown renderer
-  - [] Correctly parse and render links
-  - [] Strip temporary path from evidence file
-  - [] Adjust headline
+- [x] Improve Markdown renderer
+  - [x] Correctly parse and render links
+  - [x] Strip temporary path from evidence file
+  - [x] Adjust headline
 - [X] Highlight source node (inject CSS)
 - [x] Ask the user to if they want to download the latest version of gsn2x for their platform if not found in the path, and put it in a local path.
   - [x] Once a week, check for updates on github

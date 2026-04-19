@@ -134,3 +134,52 @@ th {
 .markdown-content {
     max-width: 800px;
 }
+/* ── Statistics view ────────────────────────────────────────────────────────── */
+
+.stats-view {
+    font-family: var(--vscode-editor-font-family, 'Courier New', monospace);
+    font-size: var(--vscode-editor-font-size, 13px);
+}
+
+dl.stats {
+    display: grid;
+    grid-template-columns: max-content max-content;
+    column-gap: 1.5em;
+    row-gap: 0.15em;
+    margin: 0;
+    padding: 0;
+    line-height: 1.35;
+}
+
+dl.stats dt,
+dl.stats dd {
+    margin: 0;
+    padding: 0;
+}
+
+/* Top-level rows: "Number of modules", "Number of elements" */
+dl.stats dt.stats-top {
+    font-weight: 600;
+}
+
+/* Sub-rows: Goals, Strategies, Solutions … */
+dl.stats dt.stats-sub {
+    padding-left: 2em;
+    font-weight: normal;
+}
+
+dl.stats dd {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Section heading lines ("Statistics") rendered as <dt> spanning both columns */
+dl.stats dt.stats-section {
+    grid-column: 1 / -1;
+    font-weight: 700;
+    font-size: 1.4em;
+    margin-top: 0.4em;
+    margin-bottom: 0.3em;
+    border-bottom: 2px solid currentColor;
+    padding-bottom: 0.2em;
+}
