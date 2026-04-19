@@ -602,7 +602,13 @@ function showSvgPreview(
 }
 
 async function handleSvgLink(href: string): Promise<void> {
-  if (!href || href.startsWith('javascript:') || href.startsWith('#')) {
+  if (
+    !href ||
+    href.startsWith('javascript:') ||
+    href.startsWith('#') ||
+    href.startsWith('data:') ||
+    href.startsWith('vbscript:')
+  ) {
     return;
   }
 
