@@ -16,7 +16,7 @@ let previewHistory: string[] = [];
 let historyIndex = -1;
 let currentSvgPath: string | undefined;
 let currentYamlPath: string | undefined;
-let svgToYaml: Map<string, string> = new Map();
+const svgToYaml: Map<string, string> = new Map();
 let statisticsPath: string | undefined;
 let evidencePath: string | undefined;
 let completePath: string | undefined;
