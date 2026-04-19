@@ -1,15 +1,20 @@
 import * as vscode from 'vscode';
 
-export function generateMarkdownHtml(content: string, webview: vscode.Webview, extensionUri: vscode.Uri): string {
-    const theme = vscode.window.activeColorTheme;
-    const isDark = theme.kind === vscode.ColorThemeKind.Dark || theme.kind === vscode.ColorThemeKind.HighContrast;
+export function generateMarkdownHtml(
+  content: string,
+  webview: vscode.Webview,
+  extensionUri: vscode.Uri
+): string {
+  const theme = vscode.window.activeColorTheme;
+  const isDark =
+    theme.kind === vscode.ColorThemeKind.Dark || theme.kind === vscode.ColorThemeKind.HighContrast;
 
-    const escapedContent = JSON.stringify(content);
-    const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'markdown.css'));
-    const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'markdown.js'));
-    const bodyClass = isDark ? 'theme-dark' : 'theme-light';
+  const escapedContent = JSON.stringify(content);
+  const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'markdown.css'));
+  const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'markdown.js'));
+  const bodyClass = isDark ? 'theme-dark' : 'theme-light';
 
-    return `<html>
+  return `<html>
                 <head>
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
