@@ -4,7 +4,7 @@
   "description": "Live preview of GSN YAML files with interactive navigation, zoom controls, and support for statistics, evidence, and additional diagram views",
   "version": "0.1.0",
   "license": "MIT",
-  "publisher": "org.jonaswolf",
+  "publisher": "jonaswolf-org",
   "engines": {
     "vscode": "^1.87.0"
   },
