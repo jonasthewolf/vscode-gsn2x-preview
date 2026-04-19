@@ -1,6 +1,6 @@
 {
-  "name": "vscode-gsn-preview",
-  "displayName": "GSN Preview",
+  "name": "gsn-preview",
+  "displayName": "gsn2x Preview",
   "description": "Live preview of GSN YAML files with interactive navigation, zoom controls, and support for statistics, evidence, and additional diagram views",
   "repository": {
     "url": "https://github.com/jonasthewolf/vscode-gsn2x-preview"
