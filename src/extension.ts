@@ -36,13 +36,32 @@ export function activate(context: vscode.ExtensionContext) {
 
   const isYamlFile = (filePath: string) => /\.(ya?ml)$/i.test(filePath);
 
+  /**
+   * Re-renders the preview for the given YAML file path without resetting
+   * navigation history. Used by both the file-system watcher and the
+   * on-save listener so that both code paths stay in sync.
+   */
+  const rerenderYaml = async (filePath: string) => {
+    if (!svgPreviewPanel) {
+      // No panel open – nothing to update.
+      return;
+    }
+    try {
+      const result = await run_gsn2x(path_gsn2x, tempDir!, filePath);
+      showSvgPreview(result.svgContent, result.svgPath, false, filePath);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const watchYamlFile = (filePath: string) => {
     yamlWatcher?.dispose();
     yamlWatcher = vscode.workspace.createFileSystemWatcher(filePath);
     yamlWatcher.onDidChange(async (e) => {
+      // Only react to external disk changes (i.e. not triggered by VS Code
+      // saves, which are handled by onDidSaveTextDocument below).
       if (e.fsPath === filePath) {
-        const result = await run_gsn2x(path_gsn2x, tempDir!, filePath);
-        showSvgPreview(result.svgContent, result.svgPath, false, filePath);
+        await rerenderYaml(filePath);
       }
     });
     context.subscriptions.push(yamlWatcher);
@@ -81,6 +100,18 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(async (editor) => {
       await renderYamlEditor(editor);
+    })
+  );
+
+  // Re-render the preview whenever the user explicitly saves a YAML file.
+  // This covers saves triggered from within VS Code (Ctrl+S / Cmd+S), which
+  // the FileSystemWatcher may coalesce or miss when auto-save is involved.
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument(async (document) => {
+      const filePath = document.uri.fsPath;
+      if (isYamlFile(filePath) && filePath === currentYamlPath) {
+        await rerenderYaml(filePath);
+      }
     })
   );
 
