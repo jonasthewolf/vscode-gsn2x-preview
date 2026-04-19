@@ -12,10 +12,10 @@
   - [] Correctly parse and render links
   - [] Strip temporary path from evidence file
   - [] Adjust headline
-- [] Highlight source node (inject CSS)
-- [] Ask the user to if they want to download the latest version of gsn2x for their platform if not found in the path, and put it in a local path.
-  - [] Once a week, check for updates on github
-  - [] Add a setting to go for the latest version
+- [X] Highlight source node (inject CSS)
+- [x] Ask the user to if they want to download the latest version of gsn2x for their platform if not found in the path, and put it in a local path.
+  - [x] Once a week, check for updates on github
+  - [x] Add a setting to go for the latest version
 - [] Split CI pipelines
 - [] Enable tests again
 - [] Write some tests
