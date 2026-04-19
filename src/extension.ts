@@ -495,29 +495,6 @@ function generateHtmlFromSvg(
                                 const element = document.getElementById('${anchor}');
                                 if (element) {
                                     element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-                                    // Replicate  g:target path { fill: lightsteelblue; fill-opacity: 1; }
-                                    // The webview has no real URL hash so :target never matches;
-                                    // we apply the same highlight imperatively instead.
-                                    const paths = Array.from(element.querySelectorAll('path'));
-                                    paths.forEach(p => {
-                                        p.dataset.origFill = p.style.fill || p.getAttribute('fill') || '';
-                                        p.dataset.origFillOpacity = p.style.fillOpacity || p.getAttribute('fill-opacity') || '';
-                                        p.dataset.origFilter = p.style.filter || '';
-                                        p.style.transition = 'fill 0.4s ease, fill-opacity 0.4s ease';
-                                        p.style.fill = 'lightsteelblue';
-                                        p.style.fillOpacity = '1';
-                                        // Cancel out the parent SVG invert(1) filter in dark mode
-                                        // so the highlight colour is not inverted to yellow.
-                                        if (${isDark}) { p.style.filter = 'invert(1)'; }
-                                    });
-                                    setTimeout(() => {
-                                        paths.forEach(p => {
-                                            p.style.fill = p.dataset.origFill || '';
-                                            p.style.fillOpacity = p.dataset.origFillOpacity || '';
-                                            p.style.filter = p.dataset.origFilter || '';
-                                        });
-                                    }, 2000);
                                 }
                             }
 
@@ -629,7 +606,16 @@ function showSvgPreview(
         }
         case 'showEvidence': {
           if (evidencePath && svgPreviewPanel && extensionUri) {
-            const content = fs.readFileSync(evidencePath, 'utf8');
+            let content = fs.readFileSync(evidencePath, 'utf8');
+            // Strip the temporary directory prefix from all paths in the evidence file
+            // so users see workspace-relative paths rather than internal temp paths.
+            if (tempDir) {
+              // gsn2x replaces path separators with underscores when writing evidence.md,
+              // so we must match the underscore-escaped form of the temp path.
+              const flatTempDir = tempDir.replace(/[/\\]/g, '_');
+              const escapedFlat = flatTempDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              content = content.replace(new RegExp(escapedFlat + '_?', 'g'), '');
+            }
             const html = generateMarkdownHtml(content, svgPreviewPanel.webview, extensionUri);
             svgPreviewPanel.webview.html = html;
           }
