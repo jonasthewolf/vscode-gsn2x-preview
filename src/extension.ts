@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as cp from 'child_process';
 import { copyYamlDependenciesRecursively } from './dependencyCopy';
+import { generateMarkdownHtml } from './markdownRenderer';
 
 let svgPreviewPanel: vscode.WebviewPanel | undefined;
 let tempDir: string | undefined;
@@ -16,6 +17,10 @@ let historyIndex = -1;
 let currentSvgPath: string | undefined;
 let currentYamlPath: string | undefined;
 let svgToYaml: Map<string, string> = new Map();
+let statisticsPath: string | undefined;
+let evidencePath: string | undefined;
+let completePath: string | undefined;
+let architecturePath: string | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration('gsn2xPreview');
@@ -111,21 +116,24 @@ async function run_gsn2x(
     const directory = path.dirname(yamlintemp);
     const baseName = path.basename(yamlintemp, path.extname(yamlintemp));
     const svgOutputPath = path.join(directory, `${baseName}.svg`);
-    const args = [yamlintemp, `-o=${outputPath}`, '--statistics=statistics.md'];
+    const args = [yamlintemp, `-o=${outputPath}`, '--statistics=statistics.md', '--evidence=evidence.md'];
     if (wordWrap) {
       args.push('-w=' + wordWrap.toString());
     }
-    const childProcess = cp.execFile(command, args, (error, stdout, stderr) => {
+    const childProcess = cp.execFile(command, args, { cwd: outputPath }, (error, stdout, stderr) => {
       if (error) {
         resolve({
           svgContent: `<html>
                             <head>
-                                <style>body { color: red; }</style>
+                                <style>
+                                    body { color: red; }
+                                    .error-msg { white-space: pre-wrap; font-family: monospace; }
+                                </style>
                             </head>
                             <body>
                                 <h1>Error</h1>
-                                <pre>${command}</pre>
-                                <pre>${stderr}</pre>
+                                <div>Command: <code>${command}</code></div>
+                                <div class="error-msg">${stderr}</div>
                             </body>
                         </html>`,
           svgPath: svgOutputPath,
@@ -140,6 +148,14 @@ async function run_gsn2x(
             svgToYaml.set(svgPath, originalYaml);
           }
         }
+        statisticsPath = path.join(outputPath, 'statistics.md');
+        if (!fs.existsSync(statisticsPath)) statisticsPath = undefined;
+        evidencePath = path.join(outputPath, 'evidence.md');
+        if (!fs.existsSync(evidencePath)) evidencePath = undefined;
+        completePath = path.join(outputPath, 'complete.svg');
+        if (!fs.existsSync(completePath)) completePath = undefined;
+        architecturePath = path.join(outputPath, 'architecture.svg');
+        if (!fs.existsSync(architecturePath)) architecturePath = undefined;
         resolve({ svgContent, svgPath: svgOutputPath });
       }
     });
@@ -246,6 +262,26 @@ function generateHtmlFromSvg(
                         .file-path {
                             font-weight: 600;
                         }
+                        .extra-links-bar {
+                            display: flex;
+                            justify-content: flex-end;
+                            padding: 10px;
+                            background-color: ${isDark ? '#252526' : '#f3f3f3'};
+                            border-top: 1px solid ${isDark ? '#3e3e42' : '#cccccc'};
+                        }
+                        .extra-links-bar button {
+                            background: ${isDark ? '#0e639c' : '#007acc'};
+                            color: white;
+                            border: none;
+                            padding: 5px 10px;
+                            margin: 0 5px;
+                            border-radius: 3px;
+                            cursor: pointer;
+                            font-size: 12px;
+                        }
+                        .extra-links-bar button:hover {
+                            background: ${isDark ? '#1177bb' : '#005a9e'};
+                        }
                     </style>
                 </head>
                 <body>
@@ -262,6 +298,12 @@ function generateHtmlFromSvg(
                     </div>
                     <div class="svg-container" id="svg-container">
                         ${svgContent}
+                    </div>
+                    <div class="extra-links-bar">
+                        ${statisticsPath ? '<button id="show-statistics">Statistics</button>' : ''}
+                        ${evidencePath ? '<button id="show-evidence">Evidence</button>' : ''}
+                        ${completePath ? '<button id="show-complete">Complete View</button>' : ''}
+                        ${architecturePath ? '<button id="show-architecture">Architecture View</button>' : ''}
                     </div>
                     <script>
                         const vscode = acquireVsCodeApi();
@@ -385,6 +427,31 @@ function generateHtmlFromSvg(
                                     element.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                 }
                             }
+
+                            const showStatisticsButton = document.getElementById('show-statistics');
+                            if (showStatisticsButton) {
+                                showStatisticsButton.addEventListener('click', () => {
+                                    vscode.postMessage({ command: 'showStatistics' });
+                                });
+                            }
+                            const showEvidenceButton = document.getElementById('show-evidence');
+                            if (showEvidenceButton) {
+                                showEvidenceButton.addEventListener('click', () => {
+                                    vscode.postMessage({ command: 'showEvidence' });
+                                });
+                            }
+                            const showCompleteButton = document.getElementById('show-complete');
+                            if (showCompleteButton) {
+                                showCompleteButton.addEventListener('click', () => {
+                                    vscode.postMessage({ command: 'showComplete' });
+                                });
+                            }
+                            const showArchitectureButton = document.getElementById('show-architecture');
+                            if (showArchitectureButton) {
+                                showArchitectureButton.addEventListener('click', () => {
+                                    vscode.postMessage({ command: 'showArchitecture' });
+                                });
+                            }
                         });
                     </script>
                 </body>
@@ -445,6 +512,43 @@ function showSvgPreview(svg: string, svgPath?: string, addToHistory = false, yam
         }
         case 'goForward': {
           navigateHistory(1);
+          break;
+        }
+        case 'showStatistics': {
+          if (statisticsPath && svgPreviewPanel) {
+            const content = fs.readFileSync(statisticsPath, 'utf8');
+            const html = generateMarkdownHtml(content);
+            svgPreviewPanel.webview.html = html;
+          }
+          break;
+        }
+        case 'showEvidence': {
+          if (evidencePath && svgPreviewPanel) {
+            const content = fs.readFileSync(evidencePath, 'utf8');
+            const html = generateMarkdownHtml(content);
+            svgPreviewPanel.webview.html = html;
+          }
+          break;
+        }
+        case 'showComplete': {
+          if (completePath && svgPreviewPanel) {
+            const svgContent = fs.readFileSync(completePath, 'utf8');
+            showSvgPreview(svgContent, completePath, true, currentYamlPath);
+          }
+          break;
+        }
+        case 'showArchitecture': {
+          if (architecturePath && svgPreviewPanel) {
+            const svgContent = fs.readFileSync(architecturePath, 'utf8');
+            showSvgPreview(svgContent, architecturePath, true, currentYamlPath);
+          }
+          break;
+        }
+        case 'backToDiagram': {
+          if (svgPreviewPanel && lastSvgContent) {
+            const html = generateHtmlFromSvg(lastSvgContent, canNavigateBack(), canNavigateForward(), currentYamlPath);
+            svgPreviewPanel.webview.html = html;
+          }
           break;
         }
       }

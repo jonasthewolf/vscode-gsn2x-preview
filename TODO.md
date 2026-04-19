@@ -1,11 +1,12 @@
 # Todos
 
 - [X] Copy all necessary files
-- [] Show links for:
-  - [] Statistics
-  - [] Architecture
-  - [] Complete view
-  - [] Evidences
+- [X] Show links for:
+  - [X] Statistics
+  - [X] Architecture
+  - [X] Complete view
+  - [X] Evidences
+- [] Improve Markdown renderer
 - [x] Allow following links above and going back and forth
 - [] Highlight source node (inject CSS)
 - [x] Show the path to the input YAML in the top of the preview (similar to normal code editor)
