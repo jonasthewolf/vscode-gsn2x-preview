@@ -24,108 +24,108 @@ let architecturePath: string | undefined;
 let extensionUri: vscode.Uri | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
-  extensionUri = context.extensionUri;
-  const config = vscode.workspace.getConfiguration('gsn2xPreview');
-  const defaultPath = process.platform === 'win32' ? 'gsn2x.exe' : 'gsn2x';
-  const path_gsn2x = config.get<string>('gsn2xPath') ?? defaultPath;
-  wordWrap = config.get<number>('wordWrap');
+    extensionUri = context.extensionUri;
+    const config = vscode.workspace.getConfiguration('gsn2xPreview');
+    const defaultPath = process.platform === 'win32' ? 'gsn2x.exe' : 'gsn2x';
+    const path_gsn2x = config.get<string>('gsn2xPath') ?? defaultPath;
+    wordWrap = config.get<number>('wordWrap');
 
-  // Create a temporary directory for SVG files
-  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gsn2x'));
-  let yamlWatcher: vscode.FileSystemWatcher | undefined;
+    // Create a temporary directory for SVG files
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gsn2x'));
+    let yamlWatcher: vscode.FileSystemWatcher | undefined;
 
-  const isYamlFile = (filePath: string) => /\.(ya?ml)$/i.test(filePath);
+    const isYamlFile = (filePath: string) => /\.(ya?ml)$/i.test(filePath);
 
-  const watchYamlFile = (filePath: string) => {
-    yamlWatcher?.dispose();
-    yamlWatcher = vscode.workspace.createFileSystemWatcher(filePath);
-    yamlWatcher.onDidChange(async (e) => {
-      if (e.fsPath === filePath) {
-        const result = await run_gsn2x(path_gsn2x, tempDir!, filePath);
-        showSvgPreview(result.svgContent, result.svgPath, false, filePath);
-      }
-    });
-    context.subscriptions.push(yamlWatcher);
-  };
+    const watchYamlFile = (filePath: string) => {
+        yamlWatcher?.dispose();
+        yamlWatcher = vscode.workspace.createFileSystemWatcher(filePath);
+        yamlWatcher.onDidChange(async (e) => {
+            if (e.fsPath === filePath) {
+                const result = await run_gsn2x(path_gsn2x, tempDir!, filePath);
+                showSvgPreview(result.svgContent, result.svgPath, false, filePath);
+            }
+        });
+        context.subscriptions.push(yamlWatcher);
+    };
 
-  const renderYamlEditor = async (editor: vscode.TextEditor | undefined) => {
-    if (!editor) {
-      return;
+    const renderYamlEditor = async (editor: vscode.TextEditor | undefined) => {
+        if (!editor) {
+            return;
+        }
+
+        const filePath = editor.document.uri.fsPath;
+        if (!isYamlFile(filePath)) {
+            return;
+        }
+
+        watchYamlFile(filePath);
+
+        try {
+            if (filePath !== currentSvgPath) {
+                previewHistory = [];
+                historyIndex = -1;
+            }
+            const result = await run_gsn2x(path_gsn2x, tempDir!, filePath);
+            showSvgPreview(result.svgContent, result.svgPath, true, filePath);
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('gsn2xPreview.open', async () => {
+            await renderYamlEditor(vscode.window.activeTextEditor);
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+            await renderYamlEditor(editor);
+        })
+    );
+
+    // Listen for theme changes and update the webview
+    context.subscriptions.push(
+        vscode.window.onDidChangeActiveColorTheme(() => {
+            if (svgPreviewPanel && lastSvgContent) {
+                const html = generateHtmlFromSvg(lastSvgContent, canNavigateBack(), canNavigateForward(), currentYamlPath);
+                svgPreviewPanel.webview.html = html;
+            }
+        })
+    );
+
+    // Render current active editor if it is YAML at startup
+    if (vscode.window.activeTextEditor) {
+        renderYamlEditor(vscode.window.activeTextEditor);
     }
-
-    const filePath = editor.document.uri.fsPath;
-    if (!isYamlFile(filePath)) {
-      return;
-    }
-
-    watchYamlFile(filePath);
-
-    try {
-      if (filePath !== currentSvgPath) {
-        previewHistory = [];
-        historyIndex = -1;
-      }
-      const result = await run_gsn2x(path_gsn2x, tempDir!, filePath);
-      showSvgPreview(result.svgContent, result.svgPath, true, filePath);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('gsn2xPreview.open', async () => {
-      await renderYamlEditor(vscode.window.activeTextEditor);
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor(async (editor) => {
-      await renderYamlEditor(editor);
-    })
-  );
-
-  // Listen for theme changes and update the webview
-  context.subscriptions.push(
-    vscode.window.onDidChangeActiveColorTheme(() => {
-      if (svgPreviewPanel && lastSvgContent) {
-        const html = generateHtmlFromSvg(lastSvgContent, canNavigateBack(), canNavigateForward(), currentYamlPath);
-        svgPreviewPanel.webview.html = html;
-      }
-    })
-  );
-
-  // Render current active editor if it is YAML at startup
-  if (vscode.window.activeTextEditor) {
-    renderYamlEditor(vscode.window.activeTextEditor);
-  }
 }
 
 interface SvgResult {
-  svgContent: string;
-  svgPath: string;
+    svgContent: string;
+    svgPath: string;
 }
 
 async function run_gsn2x(
-  command: string,
-  outputPath: string,
-  yamlFilePath: string
+    command: string,
+    outputPath: string,
+    yamlFilePath: string
 ): Promise<SvgResult> {
-  // Execute the configured command-line tool
-  return new Promise<SvgResult>((resolve) => {
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    const { copiedEntryPath, copiedToOriginal } = copyYamlDependenciesRecursively(yamlFilePath, outputPath, workspaceFolder);
-    const yamlintemp = copiedEntryPath;
-    const directory = path.dirname(yamlintemp);
-    const baseName = path.basename(yamlintemp, path.extname(yamlintemp));
-    const svgOutputPath = path.join(directory, `${baseName}.svg`);
-    const args = [yamlintemp, `-o=${outputPath}`, '--statistics=statistics.md', '--evidence=evidence.md'];
-    if (wordWrap) {
-      args.push('-w=' + wordWrap.toString());
-    }
-    const childProcess = cp.execFile(command, args, { cwd: outputPath }, (error, stdout, stderr) => {
-      if (error) {
-        resolve({
-          svgContent: `<html>
+    // Execute the configured command-line tool
+    return new Promise<SvgResult>((resolve) => {
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        const { copiedEntryPath, copiedToOriginal } = copyYamlDependenciesRecursively(yamlFilePath, outputPath, workspaceFolder);
+        const yamlintemp = copiedEntryPath;
+        const directory = path.dirname(yamlintemp);
+        const baseName = path.basename(yamlintemp, path.extname(yamlintemp));
+        const svgOutputPath = path.join(directory, `${baseName}.svg`);
+        const args = [yamlintemp, `-o=${outputPath}`, '--statistics=statistics.md', '--evidence=evidence.md'];
+        if (wordWrap) {
+            args.push('-w=' + wordWrap.toString());
+        }
+        const childProcess = cp.execFile(command, args, { cwd: outputPath }, (error, stdout, stderr) => {
+            if (error) {
+                resolve({
+                    svgContent: `<html>
                             <head>
                                 <style>
                                     body { color: red; }
@@ -138,50 +138,50 @@ async function run_gsn2x(
                                 <div class="error-msg">${stderr}</div>
                             </body>
                         </html>`,
-          svgPath: svgOutputPath,
+                    svgPath: svgOutputPath,
+                });
+            } else {
+                const svgContent = fs.readFileSync(svgOutputPath, 'utf8');
+                for (const [copiedYaml, originalYaml] of copiedToOriginal) {
+                    const dir = path.dirname(copiedYaml);
+                    const baseName = path.basename(copiedYaml, path.extname(copiedYaml));
+                    const svgPath = path.join(dir, baseName + '.svg');
+                    if (fs.existsSync(svgPath)) {
+                        svgToYaml.set(svgPath, originalYaml);
+                    }
+                }
+                statisticsPath = path.join(outputPath, 'statistics.md');
+                if (!fs.existsSync(statisticsPath)) statisticsPath = undefined;
+                evidencePath = path.join(outputPath, 'evidence.md');
+                if (!fs.existsSync(evidencePath)) evidencePath = undefined;
+                completePath = path.join(outputPath, 'complete.svg');
+                if (!fs.existsSync(completePath)) completePath = undefined;
+                architecturePath = path.join(outputPath, 'architecture.svg');
+                if (!fs.existsSync(architecturePath)) architecturePath = undefined;
+                resolve({ svgContent, svgPath: svgOutputPath });
+            }
         });
-      } else {
-        const svgContent = fs.readFileSync(svgOutputPath, 'utf8');
-        for (const [copiedYaml, originalYaml] of copiedToOriginal) {
-          const dir = path.dirname(copiedYaml);
-          const baseName = path.basename(copiedYaml, path.extname(copiedYaml));
-          const svgPath = path.join(dir, baseName + '.svg');
-          if (fs.existsSync(svgPath)) {
-            svgToYaml.set(svgPath, originalYaml);
-          }
-        }
-        statisticsPath = path.join(outputPath, 'statistics.md');
-        if (!fs.existsSync(statisticsPath)) statisticsPath = undefined;
-        evidencePath = path.join(outputPath, 'evidence.md');
-        if (!fs.existsSync(evidencePath)) evidencePath = undefined;
-        completePath = path.join(outputPath, 'complete.svg');
-        if (!fs.existsSync(completePath)) completePath = undefined;
-        architecturePath = path.join(outputPath, 'architecture.svg');
-        if (!fs.existsSync(architecturePath)) architecturePath = undefined;
-        resolve({ svgContent, svgPath: svgOutputPath });
-      }
-    });
 
-    // Capture standard error output
-    childProcess.stderr?.on('data', (data) => {
-      console.error(data.toString());
+        // Capture standard error output
+        childProcess.stderr?.on('data', (data) => {
+            console.error(data.toString());
+        });
     });
-  });
 }
 
 function generateHtmlFromSvg(
-  svgContent: string,
-  backEnabled: boolean,
-  forwardEnabled: boolean,
-  yamlPath?: string,
-  anchor?: string
+    svgContent: string,
+    backEnabled: boolean,
+    forwardEnabled: boolean,
+    yamlPath?: string,
+    anchor?: string
 ): string {
-  const theme = vscode.window.activeColorTheme;
-  const isDark =
-    theme.kind === vscode.ColorThemeKind.Dark || theme.kind === vscode.ColorThemeKind.HighContrast;
-  const svgFilter = isDark ? 'filter: invert(1);' : '';
+    const theme = vscode.window.activeColorTheme;
+    const isDark =
+        theme.kind === vscode.ColorThemeKind.Dark || theme.kind === vscode.ColorThemeKind.HighContrast;
+    const svgFilter = isDark ? 'filter: invert(1);' : '';
 
-  return `<html>
+    return `<html>
                 <head>
                     <meta charset="UTF-8">
                     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=20, user-scalable=yes">
@@ -461,193 +461,193 @@ function generateHtmlFromSvg(
 }
 
 function showSvgPreview(svg: string, svgPath?: string, addToHistory = false, yamlPath?: string, anchor?: string) {
-  lastSvgContent = svg;
+    lastSvgContent = svg;
 
-  if (svgPath) {
-    currentSvgPath = svgPath;
-    if (addToHistory) {
-      if (historyIndex < previewHistory.length - 1) {
-        previewHistory = previewHistory.slice(0, historyIndex + 1);
-      }
-      previewHistory.push(svgPath);
-      historyIndex = previewHistory.length - 1;
+    if (svgPath) {
+        currentSvgPath = svgPath;
+        if (addToHistory) {
+            if (historyIndex < previewHistory.length - 1) {
+                previewHistory = previewHistory.slice(0, historyIndex + 1);
+            }
+            previewHistory.push(svgPath);
+            historyIndex = previewHistory.length - 1;
+        }
     }
-  }
 
-  if (yamlPath) {
-    currentYamlPath = yamlPath;
-  } else if (svgPath && svgToYaml.has(svgPath)) {
-    currentYamlPath = svgToYaml.get(svgPath)!;
-  }
+    if (yamlPath) {
+        currentYamlPath = yamlPath;
+    } else if (svgPath && svgToYaml.has(svgPath)) {
+        currentYamlPath = svgToYaml.get(svgPath)!;
+    }
 
-  const html = generateHtmlFromSvg(svg, canNavigateBack(), canNavigateForward(), currentYamlPath, anchor);
-  if (svgPreviewPanel) {
-    // Update existing preview
-    svgPreviewPanel.webview.html = html;
-  } else {
-    // Create a new preview panel
-    svgPreviewPanel = vscode.window.createWebviewPanel(
-      'gsnPreview',
-      'GSN Preview',
-      vscode.ViewColumn.Beside,
-      {
-        enableScripts: true,
-      }
-    );
+    const html = generateHtmlFromSvg(svg, canNavigateBack(), canNavigateForward(), currentYamlPath, anchor);
+    if (svgPreviewPanel) {
+        // Update existing preview
+        svgPreviewPanel.webview.html = html;
+    } else {
+        // Create a new preview panel
+        svgPreviewPanel = vscode.window.createWebviewPanel(
+            'gsnPreview',
+            'GSN Preview',
+            vscode.ViewColumn.Beside,
+            {
+                enableScripts: true,
+            }
+        );
 
-    svgPreviewPanel.webview.onDidReceiveMessage(async (message) => {
-      if (!message || !message.command) {
-        return;
-      }
+        svgPreviewPanel.webview.onDidReceiveMessage(async (message) => {
+            if (!message || !message.command) {
+                return;
+            }
 
-      switch (message.command) {
-        case 'navigateLink': {
-          await handleSvgLink(message.href);
-          if (svgPreviewPanel) {
-            svgPreviewPanel.webview.postMessage({ command: 'enableLinks' });
-          }
-          break;
-        }
-        case 'goBack': {
-          navigateHistory(-1);
-          break;
-        }
-        case 'goForward': {
-          navigateHistory(1);
-          break;
-        }
-        case 'showStatistics': {
-          if (statisticsPath && svgPreviewPanel && extensionUri) {
-            const content = fs.readFileSync(statisticsPath, 'utf8');
-            const html = generateMarkdownHtml(content, svgPreviewPanel.webview, extensionUri);
-            svgPreviewPanel.webview.html = html;
-          }
-          break;
-        }
-        case 'showEvidence': {
-          if (evidencePath && svgPreviewPanel && extensionUri) {
-            const content = fs.readFileSync(evidencePath, 'utf8');
-            const html = generateMarkdownHtml(content, svgPreviewPanel.webview, extensionUri);
-            svgPreviewPanel.webview.html = html;
-          }
-          break;
-        }
-        case 'showComplete': {
-          if (completePath && svgPreviewPanel) {
-            const svgContent = fs.readFileSync(completePath, 'utf8');
-            showSvgPreview(svgContent, completePath, true, currentYamlPath);
-          }
-          break;
-        }
-        case 'showArchitecture': {
-          if (architecturePath && svgPreviewPanel) {
-            const svgContent = fs.readFileSync(architecturePath, 'utf8');
-            showSvgPreview(svgContent, architecturePath, true, currentYamlPath);
-          }
-          break;
-        }
-        case 'backToDiagram': {
-          if (svgPreviewPanel && lastSvgContent) {
-            const html = generateHtmlFromSvg(lastSvgContent, canNavigateBack(), canNavigateForward(), currentYamlPath);
-            svgPreviewPanel.webview.html = html;
-          }
-          break;
-        }
-      }
-    });
+            switch (message.command) {
+                case 'navigateLink': {
+                    await handleSvgLink(message.href);
+                    if (svgPreviewPanel) {
+                        svgPreviewPanel.webview.postMessage({ command: 'enableLinks' });
+                    }
+                    break;
+                }
+                case 'goBack': {
+                    navigateHistory(-1);
+                    break;
+                }
+                case 'goForward': {
+                    navigateHistory(1);
+                    break;
+                }
+                case 'showStatistics': {
+                    if (statisticsPath && svgPreviewPanel && extensionUri) {
+                        const content = fs.readFileSync(statisticsPath, 'utf8');
+                        const html = generateMarkdownHtml(content, svgPreviewPanel.webview, extensionUri);
+                        svgPreviewPanel.webview.html = html;
+                    }
+                    break;
+                }
+                case 'showEvidence': {
+                    if (evidencePath && svgPreviewPanel && extensionUri) {
+                        const content = fs.readFileSync(evidencePath, 'utf8');
+                        const html = generateMarkdownHtml(content, svgPreviewPanel.webview, extensionUri);
+                        svgPreviewPanel.webview.html = html;
+                    }
+                    break;
+                }
+                case 'showComplete': {
+                    if (completePath && svgPreviewPanel) {
+                        const svgContent = fs.readFileSync(completePath, 'utf8');
+                        showSvgPreview(svgContent, completePath, true, currentYamlPath);
+                    }
+                    break;
+                }
+                case 'showArchitecture': {
+                    if (architecturePath && svgPreviewPanel) {
+                        const svgContent = fs.readFileSync(architecturePath, 'utf8');
+                        showSvgPreview(svgContent, architecturePath, true, currentYamlPath);
+                    }
+                    break;
+                }
+                case 'backToDiagram': {
+                    if (svgPreviewPanel && lastSvgContent) {
+                        const html = generateHtmlFromSvg(lastSvgContent, canNavigateBack(), canNavigateForward(), currentYamlPath);
+                        svgPreviewPanel.webview.html = html;
+                    }
+                    break;
+                }
+            }
+        });
 
-    svgPreviewPanel.webview.html = html;
+        svgPreviewPanel.webview.html = html;
 
-    // Dispose the panel when closed
-    svgPreviewPanel.onDidDispose(() => {
-      svgPreviewPanel = undefined;
-    });
-  }
+        // Dispose the panel when closed
+        svgPreviewPanel.onDidDispose(() => {
+            svgPreviewPanel = undefined;
+        });
+    }
 }
 
 async function handleSvgLink(href: string): Promise<void> {
-  if (!href || href.startsWith('javascript:') || href.startsWith('#')) {
-    return;
-  }
-
-  const [fileHref, anchor] = href.split('#');
-  const isExternal = /^(https?:|mailto:|tel:|ftp:)/i.test(fileHref);
-  if (isExternal) {
-    const open = { title: 'Open externally' };
-    const cancel = { title: 'Cancel' };
-    const choice = await vscode.window.showInformationMessage(
-      'This link points outside the preview. Open in your browser?',
-      { modal: true },
-      open,
-      cancel
-    );
-    if (choice === open) {
-      vscode.env.openExternal(vscode.Uri.parse(fileHref));
+    if (!href || href.startsWith('javascript:') || href.startsWith('#')) {
+        return;
     }
-    return;
-  }
 
-  const baseDir = currentSvgPath ? path.dirname(currentSvgPath) : tempDir || '';
-  const targetPath = path.isAbsolute(fileHref) ? fileHref : path.join(baseDir, fileHref);
-
-  if (!fs.existsSync(targetPath)) {
-    vscode.window.showWarningMessage(`Referenced file not found: ${fileHref}`);
-    return;
-  }
-
-  if (!targetPath.toLowerCase().endsWith('.svg')) {
-    vscode.window.showWarningMessage('Only SVG files can be previewed.');
-    return;
-  }
-
-  if (tempDir && !targetPath.startsWith(tempDir)) {
-    const open = { title: 'Open externally' };
-    const cancel = { title: 'Cancel' };
-    const choice = await vscode.window.showInformationMessage(
-      'The referenced file is outside the preview folder. Open it externally?',
-      { modal: true },
-      open,
-      cancel
-    );
-    if (choice === open) {
-      vscode.env.openExternal(vscode.Uri.file(targetPath));
+    const [fileHref, anchor] = href.split('#');
+    const isExternal = /^(https?:|mailto:|tel:|ftp:)/i.test(fileHref);
+    if (isExternal) {
+        const open = { title: 'Open externally' };
+        const cancel = { title: 'Cancel' };
+        const choice = await vscode.window.showInformationMessage(
+            'This link points outside the preview. Open in your browser?',
+            { modal: true },
+            open,
+            cancel
+        );
+        if (choice === open) {
+            vscode.env.openExternal(vscode.Uri.parse(fileHref));
+        }
+        return;
     }
-    return;
-  }
 
-  try {
-    const svgContent = fs.readFileSync(targetPath, 'utf8');
-    showSvgPreview(svgContent, targetPath, true, svgToYaml.get(targetPath), anchor);
-  } catch (error) {
-    console.error(error);
-  }
+    const baseDir = currentSvgPath ? path.dirname(currentSvgPath) : tempDir || '';
+    const targetPath = path.isAbsolute(fileHref) ? fileHref : path.join(baseDir, fileHref);
+
+    if (!fs.existsSync(targetPath)) {
+        vscode.window.showWarningMessage(`Referenced file not found: ${fileHref}`);
+        return;
+    }
+
+    if (!targetPath.toLowerCase().endsWith('.svg')) {
+        vscode.window.showWarningMessage('Only SVG files can be previewed.');
+        return;
+    }
+
+    if (tempDir && !targetPath.startsWith(tempDir)) {
+        const open = { title: 'Open externally' };
+        const cancel = { title: 'Cancel' };
+        const choice = await vscode.window.showInformationMessage(
+            'The referenced file is outside the preview folder. Open it externally?',
+            { modal: true },
+            open,
+            cancel
+        );
+        if (choice === open) {
+            vscode.env.openExternal(vscode.Uri.file(targetPath));
+        }
+        return;
+    }
+
+    try {
+        const svgContent = fs.readFileSync(targetPath, 'utf8');
+        showSvgPreview(svgContent, targetPath, true, svgToYaml.get(targetPath), anchor);
+    } catch (error) {
+        console.error(error);
+    }
 }
 
 function canNavigateBack(): boolean {
-  return historyIndex > 0;
+    return historyIndex > 0;
 }
 
 function canNavigateForward(): boolean {
-  return historyIndex < previewHistory.length - 1;
+    return historyIndex < previewHistory.length - 1;
 }
 
 function navigateHistory(step: number) {
-  const newIndex = historyIndex + step;
-  if (newIndex < 0 || newIndex >= previewHistory.length) {
-    return;
-  }
+    const newIndex = historyIndex + step;
+    if (newIndex < 0 || newIndex >= previewHistory.length) {
+        return;
+    }
 
-  historyIndex = newIndex;
-  const targetPath = previewHistory[historyIndex];
-  try {
-    const svgContent = fs.readFileSync(targetPath, 'utf8');
-    showSvgPreview(svgContent, targetPath, false, svgToYaml.get(targetPath));
-  } catch (error) {
-    console.error(error);
-  }
+    historyIndex = newIndex;
+    const targetPath = previewHistory[historyIndex];
+    try {
+        const svgContent = fs.readFileSync(targetPath, 'utf8');
+        showSvgPreview(svgContent, targetPath, false, svgToYaml.get(targetPath));
+    } catch (error) {
+        console.error(error);
+    }
 }
 
 export function deactivate() {
-  // Clean up resources when the extension is deactivated
-  // Remove the temporary directory if needed
+    // Clean up resources when the extension is deactivated
+    // Remove the temporary directory if needed
 }

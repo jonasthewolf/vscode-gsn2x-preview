@@ -18,7 +18,6 @@ A VS Code extension that provides live preview of GSN (Goal Structuring Notation
 - **Complete View**: Access the complete diagram view (if generated)
 - **Architecture View**: View the architecture diagram (if generated)
 
-
 ## Requirements
 
 - **gsn2x**: The `gsn2x` command-line tool must be installed and available in your PATH, or configured via extension settings
