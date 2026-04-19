@@ -1,7 +1,7 @@
 {
   "name": "vscode-gsn-preview",
-  "displayName": "vscode-gsn-preview",
-  "description": "Preview gsn2x files in VSCode",
+  "displayName": "GSN Preview",
+  "description": "Live preview of GSN YAML files with interactive navigation, zoom controls, and support for statistics, evidence, and additional diagram views",
   "version": "0.0.1",
   "license": "MIT",
   "publisher": "org.jonaswolf",
@@ -17,21 +17,21 @@
     "commands": [
       {
         "command": "gsn2xPreview.open",
-        "title": "Preview file using gsn2x"
+        "title": "Preview GSN File"
       }
     ],
     "configuration": {
-      "title": "gsn2x Configuration",
+      "title": "GSN Preview",
       "properties": {
         "gsn2xPreview.gsn2xPath": {
           "type": "string",
           "default": "gsn2x",
-          "description": "Path to gsn2x"
+          "description": "Path to the gsn2x executable. If not found in PATH, specify the full path."
         },
         "gsn2xPreview.wordWrap": {
           "type": "integer",
-          "default": "15",
-          "description": "Optional word wrap"
+          "default": 15,
+          "description": "Maximum width for text wrapping in diagrams (characters)"
         }
       }
     }

@@ -1,53 +1,77 @@
-# Preview for gsn2x
+# GSN Preview for VS Code
 
-This is the README for your extension "vscode-gsn-preview". After writing up a brief description, we recommend including the following sections.
+A VS Code extension that provides live preview of GSN (Goal Structuring Notation) YAML files using the `gsn2x` tool. This extension allows you to visualize and navigate GSN diagrams directly within VS Code.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+### Core Functionality
+- **Live Preview**: Automatically generates and displays SVG diagrams from GSN YAML files using `gsn2x`
+- **Interactive Navigation**: Click on links in diagrams to navigate between related GSN elements
+- **Navigation History**: Use back/forward buttons to navigate through diagram history
+- **Zoom Controls**: Zoom in/out and reset zoom with mouse wheel or keyboard shortcuts (Ctrl+Scroll, Ctrl+/-, Ctrl+0)
 
-For example if there is an image subfolder under your extension project workspace:
+### Additional Views
+- **Statistics**: View generated statistics about the GSN model
+- **Evidence**: Display evidence files associated with the GSN model
+- **Complete View**: Access the complete diagram view (if generated)
+- **Architecture View**: View the architecture diagram (if generated)
 
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+### User Interface
+- **File Path Display**: Shows the current YAML file path at the top of the preview
+- **Responsive Design**: Adapts to VS Code's light and dark themes
+- **Markdown Rendering**: Properly renders statistics and evidence files with support for:
+  - Headers (H1-H4)
+  - Ordered and unordered lists (including nested lists)
+  - Inline formatting (bold, italic, code)
+  - Code blocks
 
 ## Requirements
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+- **gsn2x**: The `gsn2x` command-line tool must be installed and available in your PATH, or configured via extension settings
+- **VS Code**: Version 1.87.0 or higher
+
+### Installing gsn2x
+
+Download the appropriate version for your platform from the [gsn2x releases](https://github.com/gsn2x/gsn2x/releases).
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
 This extension contributes the following settings:
 
-- `myExtension.enable`: Enable/disable this extension.
-- `myExtension.thing`: Set to `blah` to do something.
+- `gsn2xPreview.gsn2xPath`: Path to the `gsn2x` executable (default: "gsn2x")
+- `gsn2xPreview.wordWrap`: Word wrap width for diagram text (default: 15)
+
+## Usage
+
+1. Open a GSN YAML file in VS Code
+2. Use Command Palette (`Ctrl+Shift+P`) and select "Preview file using gsn2x"
+3. The diagram will be generated and displayed in a side panel
+4. Click on elements to navigate to linked diagrams
+5. Use the buttons at the bottom to view statistics, evidence, or additional diagram views
+
+### Keyboard Shortcuts
+- `Ctrl+Scroll`: Zoom in/out
+- `Ctrl++`: Zoom in
+- `Ctrl+-`: Zoom out
+- `Ctrl+0`: Reset zoom
 
 ## Known Issues
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+- The extension requires `gsn2x` to be properly installed and configured
+- Some complex GSN models may take time to render
+- Webview developer tools access is limited for security reasons
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
+### 0.0.1
 
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
+Initial release with core GSN preview functionality:
+- Basic SVG diagram rendering
+- Link navigation
+- Zoom controls
+- Statistics and evidence viewing
+- Complete and architecture view support
+- Custom markdown renderer with nested list support
 
 ## Following extension guidelines
 
