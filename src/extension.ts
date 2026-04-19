@@ -111,7 +111,7 @@ async function run_gsn2x(
     const directory = path.dirname(yamlintemp);
     const baseName = path.basename(yamlintemp, path.extname(yamlintemp));
     const svgOutputPath = path.join(directory, `${baseName}.svg`);
-    const args = ['-E', yamlintemp, `-o=${outputPath}`];
+    const args = [yamlintemp, `-o=${outputPath}`, '--statistics=statistics.md'];
     if (wordWrap) {
       args.push('-w=' + wordWrap.toString());
     }
