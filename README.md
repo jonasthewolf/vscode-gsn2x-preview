@@ -20,10 +20,11 @@ A VS Code extension that provides live preview of GSN (Goal Structuring Notation
 
 ## Requirements
 
-- **gsn2x**: The `gsn2x` command-line tool must be installed and available in your PATH, or configured via extension settings
 - **VS Code**: Version 1.87.0 or higher
 
 ### Installing gsn2x
+
+If you don't have gsn2x installed, this extension will get you the latest version.
 
 Download the appropriate version for your platform from the [gsn2x releases](https://github.com/gsn2x/gsn2x/releases).
 
@@ -49,14 +50,18 @@ This extension contributes the following settings:
 - `Ctrl+-`: Zoom out
 - `Ctrl+0`: Reset zoom
 
-## Known Issues
-
-- The extension requires `gsn2x` to be properly installed and configured
-- Some complex GSN models may take time to render
-
 ## Release Notes
 
-### 0.0.1
+### 0.2.1
+
+- Fix of README.md
+
+### 0.2.0
+
+- Auto-installing of gsn2x
+- Better visualization and rendering
+
+### 0.1.0
 
 Initial release with core GSN preview functionality:
 
@@ -67,12 +72,6 @@ Initial release with core GSN preview functionality:
 - Complete and architecture view support
 - Custom markdown renderer with nested list support
 
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-- [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
 ## Working with Markdown
 
 You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
@@ -80,10 +79,3 @@ You can author your README using Visual Studio Code. Here are some useful editor
 - Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
 - Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
 - Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-- [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-- [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**

@@ -5,7 +5,7 @@
   "repository": {
     "url": "https://github.com/jonasthewolf/vscode-gsn2x-preview"
   },
-  "version": "0.2.0",
+  "version": "0.2.1",
   "license": "MIT",
   "publisher": "jonaswolf-org",
   "engines": {
