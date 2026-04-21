@@ -9,7 +9,7 @@
   "license": "MIT",
   "publisher": "jonaswolf-org",
   "engines": {
-    "vscode": "^1.87.0"
+    "vscode": "^1.116.0"
   },
   "categories": [
     "Other"
