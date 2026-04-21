@@ -1,5 +1,0 @@
-{
-  "name": "vscode-gsn-preview-test-suite",
-  "main": "./index.js",
-  "private": true
-}

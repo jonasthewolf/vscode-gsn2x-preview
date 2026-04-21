@@ -48,10 +48,7 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run copy-test-assets && npm run lint",
-    "copy-test-assets": "mkdir -p out/test/suite && cp src/test/suite/package.json out/test/suite/package.json",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js",
     "format": "prettier --write \"src/**/*.{ts,js}\" \"package.json\" \"README.md\" \"tsconfig.json\" \".eslintrc.json\" \".prettierrc\" \".github/workflows/ci.yml\"",
     "format:check": "prettier --check \"src/**/*.{ts,js}\" \"package.json\" \"README.md\" \"tsconfig.json\" \".eslintrc.json\" \".prettierrc\" \".github/workflows/ci.yml\"",
     "audit": "npm audit --production --audit-level=moderate",
@@ -61,18 +58,14 @@
     "js-yaml": "^4.1.0"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.10",
-    "@types/node": "18.x",
-    "@types/vscode": "^1.87.0",
     "@types/js-yaml": "^4.0.5",
+    "@types/node": "18.x",
+    "@types/vscode": "^1.116.0",
     "@typescript-eslint/eslint-plugin": "^7.0.2",
     "@typescript-eslint/parser": "^7.0.2",
-    "eslint-config-prettier": "^9.0.0",
-    "@vscode/test-cli": "^0.0.11",
-    "@vscode/test-electron": "^2.3.9",
     "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.0.0",
     "license-checker": "^25.0.0",
-    "mocha": "^10.2.0",
     "prettier": "^3.0.0",
     "typescript": "^5.4.3"
   }

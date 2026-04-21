@@ -258,7 +258,7 @@ function generateHtmlFromSvg(
                             background-color: ${isDark ? '#1e1e1e' : 'white'};
                             color: ${isDark ? 'white' : 'black'};
                             margin: 0;
-                            padding: 40px 20px 20px 20px;
+                            padding: 40px 20px 60px 20px;
                             overflow: auto;
                             min-height: 100vh;
                         }
@@ -333,11 +333,16 @@ function generateHtmlFromSvg(
                             font-weight: 600;
                         }
                         .extra-links-bar {
+                            position: fixed;
+                            bottom: 0;
+                            left: 0;
+                            right: 0;
                             display: flex;
                             justify-content: flex-end;
                             padding: 10px;
                             background-color: ${isDark ? '#252526' : '#f3f3f3'};
                             border-top: 1px solid ${isDark ? '#3e3e42' : '#cccccc'};
+                            z-index: 1001;
                         }
                         .extra-links-bar button {
                             background: ${isDark ? '#0e639c' : '#007acc'};
