@@ -55,11 +55,11 @@ function simpleMarkdownParse(md) {
 
     function inlineFormat(text) {
         text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
-            const escaped = url.replace(/'/g, "\\'");
+            const escaped = url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
             return `<a href="#" onclick="vscode.postMessage({command:'navigateLink',href:'${escaped}'});return false;">${label}</a>`;
         });
         text = text.replace(/(?<!href=['"])https?:\/\/[^\s<"')]+/g, (url) => {
-            const escaped = url.replace(/'/g, "\\'");
+            const escaped = url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
             return `<a href="#" onclick="vscode.postMessage({command:'navigateLink',href:'${escaped}'});return false;">${url}</a>`;
         });
         text = text.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
