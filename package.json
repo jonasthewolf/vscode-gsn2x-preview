@@ -55,7 +55,7 @@
     "check-license": "license-checker --production --onlyAllow \"MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC;Python-2.0\""
   },
   "dependencies": {
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^4.3.0"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.5",
