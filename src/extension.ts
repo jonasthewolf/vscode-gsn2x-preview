@@ -177,7 +177,7 @@ async function run_gsn2x(
     const baseName = path.basename(yamlintemp, path.extname(yamlintemp));
     const svgOutputPath = path.join(directory, `${baseName}.svg`);
     const args = [
-      yamlintemp,
+      path.relative(outputPath, yamlintemp),
       `-o=${outputPath}`,
       '--statistics=statistics.md',
       '--evidence=evidence.md',
